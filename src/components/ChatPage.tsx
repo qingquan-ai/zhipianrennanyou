@@ -22,7 +22,7 @@ export default function ChatPage({ character, onBack }: ChatPageProps) {
   const [selectedImage, setSelectedImage] = useState<{ url: string; caption: string } | null>(null);
   const [showShareModal, setShowShareModal] = useState(false);
   const [copied, setCopied] = useState(false);
-  const [mobileViewport, setMobileViewport] = useState<{ height: number; offsetTop: number } | null>(null);
+  const [mobileViewport, setMobileViewport] = useState<{ height: number; width: number; offsetTop: number } | null>(null);
   
   const {
     messages,
@@ -99,6 +99,7 @@ export default function ChatPage({ character, onBack }: ChatPageProps) {
 
         setMobileViewport({
           height: Math.max(320, Math.round(visualViewport.height)),
+          width: Math.max(320, Math.round(visualViewport.width)),
           offsetTop: Math.max(0, Math.round(visualViewport.offsetTop)),
         });
 
@@ -328,14 +329,15 @@ export default function ChatPage({ character, onBack }: ChatPageProps) {
         top: `${mobileViewport.offsetTop}px`,
         left: 0,
         right: 0,
-        width: '100%',
+        width: `${mobileViewport.width}px`,
+        maxWidth: '100vw',
       }
     : undefined;
 
   return (
-    <div className="flex h-[100dvh] min-h-[100dvh] flex-col overflow-hidden bg-gray-50" style={chatPageStyle}>
+    <div className="flex h-[100dvh] min-h-[100dvh] w-full max-w-full flex-col overflow-hidden bg-gray-50" style={chatPageStyle}>
       {/* 顶部导航 */}
-      <div className="flex shrink-0 items-center justify-between px-4 py-3 bg-white border-b border-gray-100 shadow-sm">
+      <div className="flex w-full max-w-full shrink-0 items-center justify-between overflow-hidden px-4 py-3 bg-white border-b border-gray-100 shadow-sm">
         <div className="flex items-center gap-3">
           <button
             onClick={onBack}
@@ -374,7 +376,7 @@ export default function ChatPage({ character, onBack }: ChatPageProps) {
       </div>
       
       {/* 消息区域 */}
-      <div className="min-h-0 flex-1 overflow-y-auto px-4 py-4 space-y-4 overscroll-contain">
+      <div className="min-h-0 w-full max-w-full flex-1 overflow-y-auto overflow-x-hidden px-4 py-4 space-y-4 overscroll-contain">
         {/* 欢迎消息 */}
         {messages.length === 0 && (
           <div className="flex flex-col items-center justify-center h-full text-center">
@@ -402,19 +404,23 @@ export default function ChatPage({ character, onBack }: ChatPageProps) {
         
         {/* 消息列表 */}
         {messages.map((message) => (
-          <MessageBubble
+          <div
             key={message.id}
-            message={message}
-            character={character}
-            onImageClick={() => setSelectedImage({ url: message.imageUrl || '', caption: message.imageCaption || '' })}
-          />
+            className="w-full max-w-full overflow-hidden [&>div]:w-full [&>div]:max-w-full [&>div]:min-w-0 [&>div]:box-border [&>div>div]:min-w-0 [&>div>div]:max-w-[80%] [&>div>div_p]:break-words [&>div>div_p]:whitespace-pre-wrap"
+          >
+            <MessageBubble
+              message={message}
+              character={character}
+              onImageClick={() => setSelectedImage({ url: message.imageUrl || '', caption: message.imageCaption || '' })}
+            />
+          </div>
         ))}
         
         <div ref={messagesEndRef} />
       </div>
       
       {/* 输入区域 - 增加底部安全区避免被平台水印遮挡 */}
-      <div className="shrink-0 bg-white pb-[env(safe-area-inset-bottom)]">
+      <div className="w-full max-w-full shrink-0 overflow-hidden bg-white pb-[env(safe-area-inset-bottom)] [&>div]:w-full [&>div]:max-w-full [&>div]:overflow-hidden">
         <ChatInput ref={inputRef} onSend={handleSendMessage} disabled={isLoading} />
       </div>
       
