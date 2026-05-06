@@ -256,9 +256,9 @@ export default function ChatPage({ character, onBack }: ChatPageProps) {
     }
   };
   return (
-    <div className="flex flex-col h-screen bg-gray-50">
+    <div className="flex h-[100dvh] min-h-[100dvh] flex-col overflow-hidden bg-gray-50">
       {/* 顶部导航 */}
-      <div className="flex items-center justify-between px-4 py-3 bg-white border-b border-gray-100 shadow-sm">
+      <div className="flex shrink-0 items-center justify-between px-4 py-3 bg-white border-b border-gray-100 shadow-sm">
         <div className="flex items-center gap-3">
           <button
             onClick={onBack}
@@ -297,7 +297,7 @@ export default function ChatPage({ character, onBack }: ChatPageProps) {
       </div>
       
       {/* 消息区域 */}
-      <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4">
+      <div className="min-h-0 flex-1 overflow-y-auto px-4 py-4 space-y-4 overscroll-contain">
         {/* 欢迎消息 */}
         {messages.length === 0 && (
           <div className="flex flex-col items-center justify-center h-full text-center">
@@ -337,7 +337,7 @@ export default function ChatPage({ character, onBack }: ChatPageProps) {
       </div>
       
       {/* 输入区域 - 增加底部安全区避免被平台水印遮挡 */}
-      <div className="pb-[max(10px,env(safe-area-inset-bottom,40px))]">
+      <div className="shrink-0 bg-white pb-[env(safe-area-inset-bottom)]">
         <ChatInput ref={inputRef} onSend={handleSendMessage} disabled={isLoading} />
       </div>
       
