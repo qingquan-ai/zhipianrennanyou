@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState, useCallback } from 'react';
+import { useEffect, useRef, useState, useCallback, type CSSProperties } from 'react';
 import Image from 'next/image';
 import { Character, ChatMessage, RelationshipLevel, EmotionState } from '@/types';
 import { useChatStore } from '@/store/chatStore';
@@ -22,6 +22,7 @@ export default function ChatPage({ character, onBack }: ChatPageProps) {
   const [selectedImage, setSelectedImage] = useState<{ url: string; caption: string } | null>(null);
   const [showShareModal, setShowShareModal] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [mobileViewport, setMobileViewport] = useState<{ height: number; offsetTop: number } | null>(null);
   
   const {
     messages,
@@ -59,6 +60,70 @@ export default function ChatPage({ character, onBack }: ChatPageProps) {
   useEffect(() => {
     scrollToBottom();
   }, [messages, scrollToBottom]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined' || !window.visualViewport) return;
+
+    const visualViewport = window.visualViewport;
+    const originalBodyOverflow = document.body.style.overflow;
+    const originalHtmlOverflow = document.documentElement.style.overflow;
+    let frameId: number | null = null;
+
+    const isMobileViewport = () => {
+      const hasCoarsePointer = window.matchMedia?.('(hover: none) and (pointer: coarse)').matches ?? false;
+      const hasTouch = navigator.maxTouchPoints > 0;
+      return (hasCoarsePointer || hasTouch) && (window.innerWidth <= 1024 || visualViewport.width <= 1024);
+    };
+
+    const restorePageScroll = () => {
+      document.body.style.overflow = originalBodyOverflow;
+      document.documentElement.style.overflow = originalHtmlOverflow;
+    };
+
+    const syncViewportHeight = () => {
+      if (frameId !== null) {
+        window.cancelAnimationFrame(frameId);
+      }
+
+      frameId = window.requestAnimationFrame(() => {
+        frameId = null;
+
+        if (!isMobileViewport()) {
+          setMobileViewport(null);
+          restorePageScroll();
+          return;
+        }
+
+        document.body.style.overflow = 'hidden';
+        document.documentElement.style.overflow = 'hidden';
+
+        setMobileViewport({
+          height: Math.max(320, Math.round(visualViewport.height)),
+          offsetTop: Math.max(0, Math.round(visualViewport.offsetTop)),
+        });
+
+        scrollToBottom();
+      });
+    };
+
+    syncViewportHeight();
+    visualViewport.addEventListener('resize', syncViewportHeight);
+    visualViewport.addEventListener('scroll', syncViewportHeight);
+    window.addEventListener('resize', syncViewportHeight);
+    window.addEventListener('orientationchange', syncViewportHeight);
+
+    return () => {
+      if (frameId !== null) {
+        window.cancelAnimationFrame(frameId);
+      }
+
+      visualViewport.removeEventListener('resize', syncViewportHeight);
+      visualViewport.removeEventListener('scroll', syncViewportHeight);
+      window.removeEventListener('resize', syncViewportHeight);
+      window.removeEventListener('orientationchange', syncViewportHeight);
+      restorePageScroll();
+    };
+  }, [scrollToBottom]);
 
   // 复制完整分享文案（文案 + 链接）
   const [shareText, setShareText] = useState('');
@@ -255,8 +320,20 @@ export default function ChatPage({ character, onBack }: ChatPageProps) {
       });
     }
   };
+  const chatPageStyle: CSSProperties | undefined = mobileViewport
+    ? {
+        height: `${mobileViewport.height}px`,
+        minHeight: `${mobileViewport.height}px`,
+        position: 'fixed',
+        top: `${mobileViewport.offsetTop}px`,
+        left: 0,
+        right: 0,
+        width: '100%',
+      }
+    : undefined;
+
   return (
-    <div className="flex h-[100dvh] min-h-[100dvh] flex-col overflow-hidden bg-gray-50">
+    <div className="flex h-[100dvh] min-h-[100dvh] flex-col overflow-hidden bg-gray-50" style={chatPageStyle}>
       {/* 顶部导航 */}
       <div className="flex shrink-0 items-center justify-between px-4 py-3 bg-white border-b border-gray-100 shadow-sm">
         <div className="flex items-center gap-3">
