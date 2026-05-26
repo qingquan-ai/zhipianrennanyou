@@ -1,47 +1,107 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { TTSClient, Config, HeaderUtils } from 'coze-coding-dev-sdk';
-import axios from 'axios';
-import { getCharacterById } from '@/lib/characters';
+
+const OPENROUTER_SPEECH_URL = 'https://openrouter.ai/api/v1/audio/speech';
+const OPENROUTER_TTS_MODEL = 'openai/gpt-4o-mini-tts-2025-12-15';
+const REQUEST_TIMEOUT_MS = 60_000;
+
+type SpeechFormat = 'mp3';
 
 export async function POST(request: NextRequest) {
   try {
-    const { text, characterId } = await request.json();
-    
-    if (!text) {
+    const { text } = await request.json();
+
+    if (!text?.trim()) {
       return NextResponse.json({ error: 'Text is required' }, { status: 400 });
     }
-    
-    const character = characterId ? getCharacterById(characterId) : null;
-    
-    const config = new Config({
-      apiKey: process.env.COZE_WORKLOAD_API_TOKEN || process.env.COZE_WORKLOAD_IDENTITY_API_KEY,
-      baseUrl: process.env.COZE_INTEGRATION_BASE_URL,
-      modelBaseUrl: process.env.COZE_INTEGRATION_MODEL_BASE_URL,
-    });
-    const customHeaders = HeaderUtils.extractForwardHeaders(request.headers);
-    const client = new TTSClient(config, customHeaders);
-    
-    // 使用角色对应的音色
-    const speaker = character?.ttsSpeaker || 'zh_male_m191_uranus_bigtts';
-    const speechRate = character?.speechRate || 0;
-    
-    const response = await client.synthesize({
-      uid: `tts_${Date.now()}`,
-      text: text,
-      speaker: speaker,
-      audioFormat: 'mp3',
-      sampleRate: 24000,
-      speechRate: speechRate,
-      loudnessRate: 0
-    });
-    
+
+    const apiKey = process.env.OPENROUTER_API_KEY;
+    if (!apiKey) {
+      return NextResponse.json(
+        { error: 'OPENROUTER_API_KEY is not configured' },
+        { status: 500 },
+      );
+    }
+
+    const audio = await synthesizeSpeech(text.trim(), apiKey);
+
     return NextResponse.json({
-      audioUrl: response.audioUri,
-      audioSize: response.audioSize
+      audioUrl: `data:${audio.mimeType};base64,${audio.bytes.toString('base64')}`,
+      audioSize: audio.bytes.byteLength,
     });
-    
   } catch (error) {
-    console.error('TTS error:', error);
-    return NextResponse.json({ error: 'TTS synthesis failed' }, { status: 500 });
+    if (error instanceof EmptyAudioError) {
+      return NextResponse.json(
+        {
+          error: 'OpenRouter speech returned empty audio',
+          detail: 'Upstream returned 200 with empty body',
+        },
+        { status: 502 },
+      );
+    }
+
+    const detail = error instanceof Error ? error.message : String(error);
+    console.error('[tts] synthesis failed', detail);
+
+    return NextResponse.json(
+      { error: 'TTS synthesis failed', detail },
+      { status: 502 },
+    );
+  }
+}
+
+async function synthesizeSpeech(text: string, apiKey: string) {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+  const responseFormat: SpeechFormat = 'mp3';
+
+  try {
+    const response = await fetch(OPENROUTER_SPEECH_URL, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: OPENROUTER_TTS_MODEL,
+        input: text,
+        voice: 'nova',
+        response_format: responseFormat,
+      }),
+      signal: controller.signal,
+    });
+
+    if (!response.ok) {
+      const detail = await response.text().catch(() => '');
+      throw new Error(
+        `OpenRouter speech failed: ${response.status} ${detail.slice(0, 300)}`,
+      );
+    }
+
+    const arrayBuffer = await response.arrayBuffer();
+    const bytes = Buffer.from(arrayBuffer);
+
+    if (bytes.byteLength === 0) {
+      throw new EmptyAudioError();
+    }
+
+    return {
+      bytes,
+      mimeType: 'audio/mpeg',
+    };
+  } catch (error) {
+    if (error instanceof Error && error.name === 'AbortError') {
+      throw new Error('OpenRouter speech request timed out');
+    }
+
+    throw error;
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+class EmptyAudioError extends Error {
+  constructor() {
+    super('OpenRouter speech returned empty audio');
+    this.name = 'EmptyAudioError';
   }
 }

@@ -8,7 +8,7 @@ type ChatProviderMessage = {
 };
 
 const OPENROUTER_URL = 'https://openrouter.ai/api/v1/chat/completions';
-const OPENROUTER_MODEL = 'google/gemini-3-flash-preview';
+const OPENROUTER_MODEL = 'deepseek/deepseek-chat-v3-0324';
 const OPENROUTER_MAX_TOKENS = 1000;
 const REQUEST_TIMEOUT_MS = 30_000;
 
@@ -199,6 +199,10 @@ async function invokeOpenRouterChat(
     });
 
     if (!response.ok) {
+      console.error('[chat] OpenRouter error response', {
+        status: response.status,
+        body: responseText.slice(0, 300),
+      });
       throw new Error(`OpenRouter chat failed: ${response.status} ${responseText.slice(0, 300)}`);
     }
 
