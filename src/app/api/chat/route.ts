@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getCharacterById, getCharacterSystemPrompt } from '@/lib/characters';
+import { getCharacterById, getCharacterSystemPrompt, getRandomCachedPhoto } from '@/lib/characters';
 import { ChatMessage, EmotionState, RelationshipLevel } from '@/types';
 
 type ChatProviderMessage = {
@@ -75,18 +75,10 @@ export async function POST(request: NextRequest) {
       maxTokens: OPENROUTER_MAX_TOKENS,
     });
 
-    const sendImage = shouldSendImage(userMessage, state?.todayImageCount || 0);
-    const imagePrompt = sendImage
-      ? buildImagePrompt({
-          characterName: character.name,
-          characterRole: character.role,
-          characterAppearance: character.appearance,
-          userMessage,
-          relationshipLevel,
-          emotion: currentEmotion,
-          isDaytime,
-        })
-      : '';
+    const wantsImage = shouldSendImage(userMessage, state?.todayImageCount || 0);
+    const imageUrl = wantsImage ? getRandomCachedPhoto(character.id) : '';
+    const sendImage = Boolean(imageUrl);
+    const imagePrompt = '';
 
     const imageStyle = sendImage ? '今日自拍' : '';
     const imageDescription = sendImage ? `${character.name}发来的一张照片` : '';
@@ -103,7 +95,7 @@ export async function POST(request: NextRequest) {
       imageType: sendImage ? 'selfie' : '',
       imageStyle,
       imageDescription,
-      imageUrl: '',
+      imageUrl,
       imagePrompt,
     });
   } catch (error) {

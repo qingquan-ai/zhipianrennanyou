@@ -13,6 +13,16 @@ interface MessageBubbleProps {
 
 const assistantAudioCache = new Map<string, string>();
 
+function sanitizeTextForTts(text: string): string {
+  return text
+    .replace(/（[^（）]*）/g, ' ')
+    .replace(/\([^()]*\)/g, ' ')
+    .replace(/【[^【】]*】/g, ' ')
+    .replace(/\[[^\[\]]*\]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
 export default function MessageBubble({ message, character, onImageClick }: MessageBubbleProps) {
   const [isGeneratingAudio, setIsGeneratingAudio] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -40,13 +50,19 @@ export default function MessageBubble({ message, character, onImageClick }: Mess
       let audioUrl = assistantAudioCache.get(audioCacheKey);
 
       if (!audioUrl) {
+        const ttsText = sanitizeTextForTts(message.content);
+        if (!ttsText) {
+          console.warn('TTS text is empty after sanitization');
+          return;
+        }
+
         setIsGeneratingAudio(true);
 
         const response = await fetch('/api/tts', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            text: message.content,
+            text: ttsText,
             characterId: character.id,
           }),
         });
@@ -93,17 +109,17 @@ export default function MessageBubble({ message, character, onImageClick }: Mess
       <div className={`flex ${isUser ? 'justify-end' : 'justify-start'} items-end gap-2`}>
         {!isUser && <CharacterAvatar character={character} />}
 
-        <div className="max-w-xs">
+        <div className="inline-flex max-w-[min(240px,70vw)]">
           <div
-            className="cursor-pointer overflow-hidden rounded-2xl shadow-sm transition-opacity hover:opacity-95"
+            className="inline-block max-h-[320px] max-w-[min(240px,70vw)] cursor-pointer overflow-hidden rounded-2xl shadow-sm transition-opacity hover:opacity-95"
             onClick={onImageClick}
           >
             <Image
               src={message.imageUrl}
               alt=""
-              width={200}
-              height={250}
-              className="h-auto w-full object-cover"
+              width={240}
+              height={320}
+              className="block h-auto max-h-[320px] w-auto max-w-[min(240px,70vw)] rounded-2xl object-cover"
               unoptimized
             />
           </div>

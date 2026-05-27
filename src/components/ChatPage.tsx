@@ -275,12 +275,22 @@ export default function ChatPage({ character, onBack }: ChatPageProps) {
       // 如果需要发送图片（使用预缓存图片 + 异步生成高质量图片）
       // 方案1：图片延迟加载（不阻塞主流程）
       // 方案4：使用预缓存图片快速响应
-      if (data.sendImage && data.imagePrompt) {
+      if (data.sendImage && data.imageUrl) {
         let caption = data.imageStyle || '今日自拍';
         if (data.imageDescription) {
           caption += ` - ${data.imageDescription}`;
         }
-        void requestImageInBackground(data.imagePrompt, caption, character.id);
+        const imageMessage: ChatMessage = {
+          id: `img_${Date.now()}`,
+          direction: 'character',
+          type: 'image',
+          content: caption,
+          timestamp: new Date(),
+          imageUrl: data.imageUrl,
+          imageCaption: caption,
+        };
+        addMessage(imageMessage);
+        recordImageSent();
         return;
         
         // 预缓存图片立即可用，延迟500ms显示（留出动画时间）

@@ -31,10 +31,12 @@ export const characterCachedPhotos: Record<string, string[]> = {
 
 // 获取随机预缓存照片
 export const getRandomCachedPhoto = (characterId: string): string | null => {
-  const photos = characterCachedPhotos[characterId];
+  const photos = CHARACTER_SELFIES[characterId];
   if (!photos || photos.length === 0) return null;
   return photos[Math.floor(Math.random() * photos.length)];
 };
+
+export const CHARACTER_SELFIES = characterCachedPhotos;
 
 export const characters: Character[] = [
   {
