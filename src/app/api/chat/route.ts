@@ -1,11 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { and, eq, isNull } from 'drizzle-orm';
+import { chatMessages, chatSessions } from '@/db/schema';
 import { getCharacterById, getCharacterSystemPrompt, getRandomCachedPhoto } from '@/lib/characters';
-import { ChatMessage, EmotionState, RelationshipLevel } from '@/types';
+import { getCurrentUser } from '@/lib/user-auth';
+import { ChatMessage, ChatRequest, EmotionState, RelationshipLevel } from '@/types';
 
 type ChatProviderMessage = {
   role: 'system' | 'user' | 'assistant';
   content: string;
 };
+
+type AppDb = typeof import('@/db')['db'];
 
 const OPENROUTER_URL = 'https://openrouter.ai/api/v1/chat/completions';
 const OPENROUTER_MODEL = 'deepseek/deepseek-chat-v3-0324';
@@ -25,11 +30,33 @@ const PHOTO_KEYWORDS = [
 
 export async function POST(request: NextRequest) {
   try {
-    const { characterId, userMessage, conversationHistory, state } = await request.json();
+    const {
+      characterId,
+      userMessage,
+      conversationHistory,
+      state,
+      sessionId: requestSessionId,
+    } = (await request.json()) as ChatRequest;
 
     const character = getCharacterById(characterId);
     if (!character) {
       return NextResponse.json({ error: 'Character not found' }, { status: 404 });
+    }
+
+    let sessionId = normalizeSessionId(requestSessionId);
+    let dbSaved = false;
+    let canSaveAssistantMessage = false;
+
+    try {
+      sessionId = await saveUserChatMessage({
+        sessionId,
+        characterId,
+        userMessage,
+      });
+      dbSaved = true;
+      canSaveAssistantMessage = true;
+    } catch (error) {
+      console.error('[chat] failed to save user message', error);
     }
 
     const now = new Date();
@@ -85,8 +112,23 @@ export async function POST(request: NextRequest) {
     const cleanedText = sanitizeChatContent(fullText, sendImage);
     const content = cleanedText || (sendImage ? '给你发张照片。' : fullText.trim());
 
+    if (canSaveAssistantMessage && sessionId) {
+      try {
+        await saveAssistantChatMessage({
+          sessionId,
+          content,
+        });
+        dbSaved = true;
+      } catch (error) {
+        dbSaved = false;
+        console.error('[chat] failed to save assistant message', error);
+      }
+    }
+
     return NextResponse.json({
       type: 'done',
+      sessionId,
+      dbSaved,
       content,
       emotion: currentEmotion,
       relationshipLevel,
@@ -109,6 +151,109 @@ export async function POST(request: NextRequest) {
       { status: 502 },
     );
   }
+}
+
+function normalizeSessionId(value: unknown): string | null {
+  if (typeof value !== 'string') return null;
+  const trimmed = value.trim();
+  return trimmed || null;
+}
+
+function buildSessionTitle(userMessage: string): string | null {
+  const title = userMessage.trim().replace(/\s+/g, ' ').slice(0, 20);
+  return title || null;
+}
+
+async function getDb(): Promise<AppDb> {
+  const database = await import('@/db');
+  return database.db;
+}
+
+async function saveUserChatMessage(input: {
+  sessionId: string | null;
+  characterId: string;
+  userMessage: string;
+}): Promise<string> {
+  const database = await getDb();
+  const currentUserId = await getCurrentUserId();
+  const sessionId = input.sessionId || await createChatSession(database, {
+    characterId: input.characterId,
+    userMessage: input.userMessage,
+    userId: currentUserId,
+  });
+
+  if (input.sessionId && currentUserId) {
+    await attachAnonymousSessionToUser(database, sessionId, currentUserId);
+  }
+
+  await database.insert(chatMessages).values({
+    sessionId,
+    role: 'user',
+    content: input.userMessage,
+  });
+
+  return sessionId;
+}
+
+async function createChatSession(
+  database: AppDb,
+  input: {
+    characterId: string;
+    userMessage: string;
+    userId: string | null;
+  },
+): Promise<string> {
+  const [session] = await database
+    .insert(chatSessions)
+    .values({
+      userId: input.userId,
+      characterId: input.characterId,
+      title: buildSessionTitle(input.userMessage),
+    })
+    .returning({ id: chatSessions.id });
+
+  if (!session?.id) {
+    throw new Error('Failed to create chat session');
+  }
+
+  return session.id;
+}
+
+async function attachAnonymousSessionToUser(
+  database: AppDb,
+  sessionId: string,
+  userId: string,
+): Promise<void> {
+  await database
+    .update(chatSessions)
+    .set({
+      userId,
+      updatedAt: new Date(),
+    })
+    .where(and(eq(chatSessions.id, sessionId), isNull(chatSessions.userId)));
+}
+
+async function getCurrentUserId(): Promise<string | null> {
+  try {
+    const currentUser = await getCurrentUser();
+    return currentUser?.id || null;
+  } catch (error) {
+    console.error('[chat] failed to resolve current user', error);
+    return null;
+  }
+}
+
+async function saveAssistantChatMessage(input: {
+  sessionId: string;
+  content: string;
+}): Promise<void> {
+  const database = await getDb();
+
+  await database.insert(chatMessages).values({
+    sessionId: input.sessionId,
+    role: 'assistant',
+    content: input.content,
+  });
 }
 
 function inferEmotion(userMessage: string): EmotionState {

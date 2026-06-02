@@ -4,8 +4,13 @@ import { useEffect, useRef, useState, useCallback, type CSSProperties } from 're
 import Image from 'next/image';
 import { Character, ChatMessage, RelationshipLevel, EmotionState } from '@/types';
 import { useChatStore } from '@/store/chatStore';
+import {
+  mapSessionMessageToChatMessage,
+  type SessionMessageResponseItem,
+} from '@/lib/chat/sessionMessages';
 import MessageBubble from '@/components/MessageBubble';
 import ChatInput, { ChatInputRef } from '@/components/ChatInput';
+import UserAuthStatus from '@/components/UserAuthStatus';
 import { ArrowLeft, Share2, X, Copy, Check, MessageCircle } from 'lucide-react';
 
 interface ChatPageProps {
@@ -23,6 +28,7 @@ export default function ChatPage({ character, onBack }: ChatPageProps) {
   const [showShareModal, setShowShareModal] = useState(false);
   const [copied, setCopied] = useState(false);
   const [mobileViewport, setMobileViewport] = useState<{ height: number; width: number; offsetTop: number } | null>(null);
+  const [sessionId, setSessionId] = useState<string | null>(null);
   
   const {
     messages,
@@ -45,6 +51,11 @@ export default function ChatPage({ character, onBack }: ChatPageProps) {
     if (character) {
       setCurrentCharacter(character);
       loadCharacterChat(character.id);
+      const storedSessionId = window.localStorage.getItem(getChatSessionStorageKey(character.id));
+      setSessionId(storedSessionId);
+      if (storedSessionId) {
+        restoreSessionMessages(storedSessionId, character.id, saveCurrentChat);
+      }
     }
     return () => {
       // 离开页面时保存聊天记录
@@ -233,6 +244,7 @@ export default function ChatPage({ character, onBack }: ChatPageProps) {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          sessionId: sessionId || null,
           characterId: character.id,
           userMessage: content.trim(),
           conversationHistory: messages,
@@ -246,6 +258,12 @@ export default function ChatPage({ character, onBack }: ChatPageProps) {
       }
       
       const data = await chatResponse.json();
+      if (typeof data.sessionId === 'string' && data.sessionId.trim()) {
+        const nextSessionId = data.sessionId.trim();
+        setSessionId(nextSessionId);
+        window.localStorage.setItem(getChatSessionStorageKey(character.id), nextSessionId);
+      }
+
       if (!data.content?.trim()) {
         throw new Error('Chat API returned empty content');
       }
@@ -377,12 +395,15 @@ export default function ChatPage({ character, onBack }: ChatPageProps) {
         </div>
         
         {/* 右侧：分享按钮 */}
-        <button
-          onClick={() => setShowShareModal(true)}
-          className="p-2 hover:bg-gray-100 rounded-full transition-colors"
-        >
-          <Share2 className="w-5 h-5 text-gray-600" />
-        </button>
+        <div className="flex shrink-0 items-center gap-2">
+          <UserAuthStatus />
+          <button
+            onClick={() => setShowShareModal(true)}
+            className="p-2 hover:bg-gray-100 rounded-full transition-colors"
+          >
+            <Share2 className="w-5 h-5 text-gray-600" />
+          </button>
+        </div>
       </div>
       
       {/* 消息区域 */}
@@ -509,6 +530,44 @@ export default function ChatPage({ character, onBack }: ChatPageProps) {
       )}
     </div>
   );
+}
+
+function getChatSessionStorageKey(characterId: string): string {
+  return `chat_session_id_${characterId}`;
+}
+
+async function restoreSessionMessages(
+  sessionId: string,
+  characterId: string,
+  saveCurrentChat: () => void,
+) {
+  try {
+    const response = await fetch(`/api/chat/sessions/${encodeURIComponent(sessionId)}/messages`);
+    if (!response.ok) {
+      throw new Error('Chat session messages API error');
+    }
+
+    const data = await response.json();
+    const restoredMessages = Array.isArray(data.messages)
+      ? data.messages
+          .map((message: SessionMessageResponseItem) => mapSessionMessageToChatMessage(message))
+          .filter((message: ChatMessage | null): message is ChatMessage => message !== null)
+      : [];
+
+    if (restoredMessages.length === 0) return;
+    if (useChatStore.getState().currentCharacter?.id !== characterId) return;
+
+    useChatStore.setState((state) => ({
+      messages: restoredMessages,
+      conversationState: {
+        ...state.conversationState,
+        messageCount: restoredMessages.length,
+      },
+    }));
+    saveCurrentChat();
+  } catch (error) {
+    console.warn('Failed to restore chat session messages:', error);
+  }
 }
 
 function getChatFailureMessage(errorText: string): string {

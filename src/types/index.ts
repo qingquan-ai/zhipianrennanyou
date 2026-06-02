@@ -75,6 +75,7 @@ export interface CharacterResponse {
 
 // 用户消息请求
 export interface ChatRequest {
+  sessionId?: string | null;
   characterId: string;
   userMessage: string;
   conversationHistory?: ChatMessage[];

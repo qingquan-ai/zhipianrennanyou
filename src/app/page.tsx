@@ -4,6 +4,7 @@ import { Character } from "@/types";
 import { characters, getCharacterById } from "@/lib/characters";
 import CharacterCard from "@/components/CharacterCard";
 import ChatPage from "@/components/ChatPage";
+import UserAuthStatus from "@/components/UserAuthStatus";
 import { useChatStore } from "@/store/chatStore";
 
 const SELECTED_CHARACTER_STORAGE_KEY = "selected_character_id";
@@ -49,6 +50,9 @@ export default function Home() {
     return (
         <div
             className="min-h-screen bg-gradient-to-b from-pink-50 via-white to-purple-50">
+            <div className="fixed right-4 top-4 z-40 rounded-full bg-white/80 px-3 py-2 shadow-sm backdrop-blur-sm">
+                <UserAuthStatus />
+            </div>
             {}
             <div className="pt-12 pb-8 text-center">
                 <h1
