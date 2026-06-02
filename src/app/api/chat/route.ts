@@ -105,6 +105,7 @@ export async function POST(request: NextRequest) {
     const wantsImage = shouldSendImage(userMessage, state?.todayImageCount || 0);
     const imageUrl = wantsImage ? getRandomCachedPhoto(character.id) : '';
     const sendImage = Boolean(imageUrl);
+    console.log("[chat-image] shouldSendImageResult", { sendImage, imageUrl });
     const imagePrompt = '';
 
     const imageStyle = sendImage ? '今日自拍' : '';
@@ -114,9 +115,11 @@ export async function POST(request: NextRequest) {
 
     if (canSaveAssistantMessage && sessionId) {
       try {
+        console.log("[chat-image] before save assistant", { sessionId, imageUrl, hasImageUrl: Boolean(imageUrl) });
         await saveAssistantChatMessage({
           sessionId,
           content,
+          imageUrl,
         });
         dbSaved = true;
       } catch (error) {
@@ -246,13 +249,16 @@ async function getCurrentUserId(): Promise<string | null> {
 async function saveAssistantChatMessage(input: {
   sessionId: string;
   content: string;
+  imageUrl?: string | null;
 }): Promise<void> {
   const database = await getDb();
 
+  console.log("[chat-image] insert assistant", { sessionId: input.sessionId, imageUrl: input.imageUrl });
   await database.insert(chatMessages).values({
     sessionId: input.sessionId,
     role: 'assistant',
     content: input.content,
+    imageUrl: input.imageUrl || null,
   });
 }
 
