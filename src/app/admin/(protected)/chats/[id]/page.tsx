@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 
 import { AdminEmptyState } from '@/components/admin/AdminControls';
+import { ImagePreviewLink } from '@/components/admin/ImagePreviewLink';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -61,32 +62,47 @@ export default async function AdminChatDetailPage({
 
       {detail.messages.length > 0 ? (
         <div className="rounded-lg border bg-card">
-          <Table>
+          <Table className="table-fixed w-full">
             <TableHeader>
               <TableRow>
-                <TableHead>role</TableHead>
+                <TableHead className="w-24">role</TableHead>
                 <TableHead>content</TableHead>
-                <TableHead>image_url</TableHead>
-                <TableHead>audio_url</TableHead>
-                <TableHead>created_at</TableHead>
+                <TableHead className="w-28">image_url</TableHead>
+                <TableHead className="w-28">audio_url</TableHead>
+                <TableHead className="w-40">created_at</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {detail.messages.map((message, index) => (
                 <TableRow key={`${message.createdAt}-${index}`}>
-                  <TableCell>
+                  <TableCell className="whitespace-nowrap">
                     <Badge variant="outline">{message.role}</Badge>
                   </TableCell>
-                  <TableCell className="max-w-xl whitespace-pre-wrap break-words">
+                  <TableCell className="whitespace-pre-wrap break-words">
                     {message.content || '-'}
                   </TableCell>
-                  <TableCell className="max-w-56 break-words text-xs">
-                    {message.imageUrl || '-'}
+                  <TableCell className="whitespace-nowrap">
+                    {message.imageUrl ? (
+                      <ImagePreviewLink imageUrl={message.imageUrl} />
+                    ) : (
+                      '-'
+                    )}
                   </TableCell>
-                  <TableCell className="max-w-56 break-words text-xs">
-                    {message.audioUrl || '-'}
+                  <TableCell className="whitespace-nowrap">
+                    {message.audioUrl ? (
+                      <a
+                        href={message.audioUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="text-blue-600 hover:underline"
+                      >
+                        查看音频
+                      </a>
+                    ) : (
+                      '-'
+                    )}
                   </TableCell>
-                  <TableCell>{message.createdAt || '-'}</TableCell>
+                  <TableCell className="whitespace-nowrap">{message.createdAt || '-'}</TableCell>
                 </TableRow>
               ))}
             </TableBody>

@@ -1,7 +1,10 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { mapSessionMessageToChatMessage } from '../src/lib/chat/sessionMessages';
+import {
+  mapSessionMessageToChatMessage,
+  mapSessionMessageToChatMessages,
+} from '../src/lib/chat/sessionMessages';
 
 test('mapSessionMessageToChatMessage maps persisted user and assistant messages', () => {
   assert.deepEqual(
@@ -54,5 +57,36 @@ test('mapSessionMessageToChatMessage skips system messages', () => {
       created_at: '2026-06-02T02:21:35.000Z',
     }),
     null,
+  );
+});
+
+test('mapSessionMessageToChatMessages splits assistant text with image into ordered messages', () => {
+  assert.deepEqual(
+    mapSessionMessageToChatMessages({
+      id: 'message-4',
+      role: 'assistant',
+      content: '给你发张照片。',
+      image_url: 'https://example.local/photo.jpg',
+      audio_url: null,
+      created_at: '2026-06-02T02:21:40.000Z',
+    }),
+    [
+      {
+        id: 'message-4-text',
+        direction: 'character',
+        type: 'text',
+        content: '给你发张照片。',
+        timestamp: new Date('2026-06-02T02:21:40.000Z'),
+      },
+      {
+        id: 'message-4-image',
+        direction: 'character',
+        type: 'image',
+        content: '',
+        timestamp: new Date('2026-06-02T02:21:40.000Z'),
+        imageUrl: 'https://example.local/photo.jpg',
+        imageCaption: '给你发张照片。',
+      },
+    ],
   );
 });

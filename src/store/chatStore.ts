@@ -68,6 +68,26 @@ const initialConversationState: ConversationState = {
   todayImageCount: 0,
 };
 
+export const normalizeConversationStateForToday = (
+  state: ConversationState,
+  now = new Date(),
+): ConversationState => {
+  const lastImageSentTime = state.lastImageSentTime as Date | string | undefined;
+  if (!lastImageSentTime) return state;
+
+  const lastImageSentDate = lastImageSentTime instanceof Date
+    ? lastImageSentTime
+    : new Date(lastImageSentTime);
+  if (Number.isNaN(lastImageSentDate.getTime())) return state;
+
+  const isSameDay =
+    lastImageSentDate.getFullYear() === now.getFullYear() &&
+    lastImageSentDate.getMonth() === now.getMonth() &&
+    lastImageSentDate.getDate() === now.getDate();
+
+  return isSameDay ? state : { ...state, todayImageCount: 0 };
+};
+
 export const useChatStore = create<ChatStore>((set, get) => {
   const persistCurrentCharacterChat = () => {
     const state = get();
@@ -193,7 +213,9 @@ export const useChatStore = create<ChatStore>((set, get) => {
 
         set({
           messages: sanitizedMessages,
-          conversationState: savedData.conversationState || initialConversationState,
+          conversationState: savedData.conversationState
+            ? normalizeConversationStateForToday(savedData.conversationState)
+            : initialConversationState,
         });
       } else {
         set({

@@ -5,7 +5,7 @@ import Image from 'next/image';
 import { Character, ChatMessage, RelationshipLevel, EmotionState } from '@/types';
 import { useChatStore } from '@/store/chatStore';
 import {
-  mapSessionMessageToChatMessage,
+  mapSessionMessageToChatMessages,
   type SessionMessageResponseItem,
 } from '@/lib/chat/sessionMessages';
 import MessageBubble from '@/components/MessageBubble';
@@ -550,8 +550,7 @@ async function restoreSessionMessages(
     const data = await response.json();
     const restoredMessages = Array.isArray(data.messages)
       ? data.messages
-          .map((message: SessionMessageResponseItem) => mapSessionMessageToChatMessage(message))
-          .filter((message: ChatMessage | null): message is ChatMessage => message !== null)
+          .flatMap((message: SessionMessageResponseItem) => mapSessionMessageToChatMessages(message))
       : [];
 
     if (restoredMessages.length === 0) return;

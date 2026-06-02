@@ -26,6 +26,17 @@ const PHOTO_KEYWORDS = [
   '发张',
   '发个',
   '帅照',
+  '再来一张',
+  '再发一张',
+  '再发张',
+  '来一张',
+  '来张',
+  '再来个',
+  '再发个',
+  '再来一张照片',
+  '再来张自拍',
+  '多发一张',
+  '换一张',
 ];
 
 export async function POST(request: NextRequest) {
@@ -105,7 +116,6 @@ export async function POST(request: NextRequest) {
     const wantsImage = shouldSendImage(userMessage, state?.todayImageCount || 0);
     const imageUrl = wantsImage ? getRandomCachedPhoto(character.id) : '';
     const sendImage = Boolean(imageUrl);
-    console.log("[chat-image] shouldSendImageResult", { sendImage, imageUrl });
     const imagePrompt = '';
 
     const imageStyle = sendImage ? '今日自拍' : '';
@@ -115,7 +125,6 @@ export async function POST(request: NextRequest) {
 
     if (canSaveAssistantMessage && sessionId) {
       try {
-        console.log("[chat-image] before save assistant", { sessionId, imageUrl, hasImageUrl: Boolean(imageUrl) });
         await saveAssistantChatMessage({
           sessionId,
           content,
@@ -253,7 +262,6 @@ async function saveAssistantChatMessage(input: {
 }): Promise<void> {
   const database = await getDb();
 
-  console.log("[chat-image] insert assistant", { sessionId: input.sessionId, imageUrl: input.imageUrl });
   await database.insert(chatMessages).values({
     sessionId: input.sessionId,
     role: 'assistant',
@@ -283,7 +291,7 @@ function updateRelationshipLevel(
   return 'stranger';
 }
 
-function shouldSendImage(userMessage: string, todayImageCount: number): boolean {
+export function shouldSendImage(userMessage: string, todayImageCount: number): boolean {
   if (todayImageCount >= 5) return false;
   return PHOTO_KEYWORDS.some((keyword) => userMessage.includes(keyword));
 }
