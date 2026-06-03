@@ -8,6 +8,10 @@ import {
   getUserAuthDisplayName,
   type UserAuthStatusUser,
 } from '@/lib/user-auth-status';
+import {
+  clearChatLocalStorageForLogout,
+  syncChatLocalStorageForUser,
+} from '@/lib/chat/localStorage';
 
 type SessionResponse = {
   user: (UserAuthStatusUser & {
@@ -32,7 +36,12 @@ export default function UserAuthStatus() {
         if (!response.ok) throw new Error('Session API error');
 
         const data = (await response.json()) as SessionResponse;
-        if (isMounted) setUser(data.user);
+        if (isMounted) {
+          if (data.user && typeof window !== 'undefined') {
+            syncChatLocalStorageForUser(data.user.id, window.localStorage);
+          }
+          setUser(data.user);
+        }
       } catch {
         if (isMounted) setUser(null);
       } finally {
@@ -59,6 +68,7 @@ export default function UserAuthStatus() {
 
       if (!response.ok) throw new Error('Logout API error');
 
+      clearChatLocalStorageForLogout(window.localStorage);
       setUser(null);
       router.refresh();
     } catch {
