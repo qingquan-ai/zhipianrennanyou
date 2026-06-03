@@ -44,7 +44,13 @@ export default function MessageBubble({ message, character, onImageClick }: Mess
   }, []);
 
   const handlePlayVoice = async () => {
-    if (!isAssistantText || isGeneratingAudio || isPlaying) return;
+    if (!isAssistantText || isGeneratingAudio) return;
+
+    if (isPlaying) {
+      activeAudioRef.current?.pause();
+      setIsPlaying(false);
+      return;
+    }
 
     try {
       let audioUrl = assistantAudioCache.get(audioCacheKey);
@@ -161,14 +167,14 @@ export default function MessageBubble({ message, character, onImageClick }: Mess
           <button
             type="button"
             onClick={handlePlayVoice}
-            disabled={isGeneratingAudio || isPlaying}
+            disabled={isGeneratingAudio}
             className={`
               absolute -left-2 -top-2.5 z-20
               flex items-center gap-1.5 rounded-full border border-gray-100
               bg-white/85 py-1 pl-2 pr-3 text-xs font-medium text-gray-600
               shadow-sm shadow-gray-200/80 backdrop-blur-md transition-all duration-200
               hover:bg-white
-              ${isGeneratingAudio || isPlaying ? 'cursor-wait opacity-80' : 'cursor-pointer'}
+              ${isGeneratingAudio ? 'cursor-wait opacity-80' : 'cursor-pointer'}
               ${isPlaying ? 'ring-2 ring-pink-200' : ''}
             `}
             title={isGeneratingAudio ? '生成中' : isPlaying ? '播放中' : '播放语音'}
