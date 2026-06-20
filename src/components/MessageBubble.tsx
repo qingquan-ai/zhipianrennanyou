@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import Image from 'next/image';
 import { Character, ChatMessage } from '@/types';
+import { getCharacterTheme, type CharacterTheme } from '@/lib/characterThemes';
 import { Loader2, Pause, Play } from 'lucide-react';
 
 interface MessageBubbleProps {
@@ -24,6 +25,7 @@ function sanitizeTextForTts(text: string): string {
 }
 
 export default function MessageBubble({ message, character, onImageClick }: MessageBubbleProps) {
+  const theme = getCharacterTheme(character.id);
   const [isGeneratingAudio, setIsGeneratingAudio] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
   const activeAudioRef = useRef<HTMLAudioElement | null>(null);
@@ -131,7 +133,7 @@ export default function MessageBubble({ message, character, onImageClick }: Mess
           </div>
         </div>
 
-        {isUser && <UserAvatar />}
+        {isUser && <UserAvatar theme={theme} />}
       </div>
     );
   }
@@ -175,7 +177,7 @@ export default function MessageBubble({ message, character, onImageClick }: Mess
               shadow-sm shadow-gray-200/80 backdrop-blur-md transition-all duration-200
               hover:bg-white
               ${isGeneratingAudio ? 'cursor-wait opacity-80' : 'cursor-pointer'}
-              ${isPlaying ? 'ring-2 ring-pink-200' : ''}
+              ${isPlaying ? `ring-2 ${theme.playRing}` : ''}
             `}
             title={isGeneratingAudio ? '生成中' : isPlaying ? '播放中' : '播放语音'}
           >
@@ -183,9 +185,9 @@ export default function MessageBubble({ message, character, onImageClick }: Mess
               {isGeneratingAudio ? (
                 <Loader2 className="h-3.5 w-3.5 animate-spin text-gray-400" />
               ) : isPlaying ? (
-                <Pause className="h-3.5 w-3.5 fill-pink-500 text-pink-500" />
+                <Pause className={`h-3.5 w-3.5 ${theme.playIcon}`} />
               ) : (
-                <Play className="ml-0.5 h-3.5 w-3.5 fill-pink-500 text-pink-500" />
+                <Play className={`ml-0.5 h-3.5 w-3.5 ${theme.playIcon}`} />
               )}
             </span>
             <span>{isGeneratingAudio ? '生成中' : isPlaying ? '播放中' : '播放语音'}</span>
@@ -197,8 +199,8 @@ export default function MessageBubble({ message, character, onImageClick }: Mess
             min-h-[44px] px-4 pb-3 pt-4
             ${
               isUser
-                ? 'rounded-2xl rounded-br-md bg-pink-500 text-white'
-                : 'rounded-2xl rounded-bl-md border border-gray-100 bg-white text-gray-800 shadow-sm'
+                ? `rounded-2xl rounded-br-md ${theme.userBubble}`
+                : `rounded-2xl rounded-bl-md border ${theme.charBubble} shadow-sm`
             }
           `}
         >
@@ -210,7 +212,7 @@ export default function MessageBubble({ message, character, onImageClick }: Mess
           </p>
         </div>
 
-        <p className={`mt-1 text-xs text-gray-400 ${isUser ? 'text-right' : ''}`}>
+        <p className={`mt-1 text-xs ${theme.timeText} ${isUser ? 'text-right' : ''}`}>
           {new Date(message.timestamp).toLocaleTimeString('zh-CN', {
             hour: '2-digit',
             minute: '2-digit',
@@ -218,7 +220,7 @@ export default function MessageBubble({ message, character, onImageClick }: Mess
         </p>
       </div>
 
-      {isUser && <UserAvatar />}
+      {isUser && <UserAvatar theme={theme} />}
     </div>
   );
 }
@@ -237,9 +239,9 @@ function CharacterAvatar({ character }: { character: Character }) {
   );
 }
 
-function UserAvatar() {
+function UserAvatar({ theme }: { theme: CharacterTheme }) {
   return (
-    <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-pink-500">
+    <div className={`flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full ${theme.userAvatarBg}`}>
       <span className="text-sm font-bold text-white">我</span>
     </div>
   );

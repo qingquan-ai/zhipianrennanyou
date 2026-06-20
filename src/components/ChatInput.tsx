@@ -4,6 +4,7 @@
 
 import { useState, useRef, useEffect, useCallback, forwardRef, useImperativeHandle } from 'react';
 import { Send, Mic, MicOff } from 'lucide-react';
+import { getCharacterTheme, type CharacterTheme } from '@/lib/characterThemes';
 import VoiceWave from './VoiceWave';
 import { 
   isMediaRecorderSupported, 
@@ -14,13 +15,14 @@ import {
 interface ChatInputProps {
   onSend: (content: string) => void;
   disabled?: boolean;
+  theme?: CharacterTheme;
 }
 
 export interface ChatInputRef {
   focus: () => void;
 }
 
-const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(({ onSend, disabled }, ref) => {
+const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(({ onSend, disabled, theme = getCharacterTheme() }, ref) => {
   const [input, setInput] = useState('');
   const [isRecording, setIsRecording] = useState(false);
   const [recordingError, setRecordingError] = useState<string | null>(null);
@@ -170,9 +172,9 @@ const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(({ onSend, disabled }
   const showError = recordingError && !isRecording;
 
   return (
-    <div 
+    <div
       ref={containerRef}
-      className="border-t border-gray-100 bg-white px-4 pt-3 pb-4"
+      className={`border-t ${theme.inputBorder} ${theme.inputBarBg} px-4 pt-3 pb-4`}
       onClick={handleContainerClick}
     >
       {/* 错误提示 */}
@@ -195,7 +197,7 @@ const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(({ onSend, disabled }
             placeholder={disabled ? "对方正在输入..." : isRecording ? "正在聆听..." : "输入消息..."}
             disabled={disabled || isRecording}
             rows={1}
-            className={`w-full px-4 py-2.5 bg-gray-100 rounded-full resize-none focus:outline-none focus:ring-2 focus:ring-pink-300 text-sm transition-all ${
+            className={`w-full px-4 py-2.5 ${theme.inputFieldBg} rounded-full resize-none focus:outline-none focus:ring-2 ${theme.inputFocusRing} text-sm transition-all ${
               disabled ? 'opacity-50 cursor-not-allowed' : ''
             } ${isRecording ? 'bg-red-50 cursor-not-allowed' : ''}`}
             style={{ maxHeight: '120px' }}
@@ -219,7 +221,7 @@ const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(({ onSend, disabled }
           {isRecording ? (
             <MicOff className="w-5 h-5 text-white" />
           ) : (
-            <Mic className="w-5 h-5 text-gray-600" />
+            <Mic className={`w-5 h-5 ${theme.micIcon}`} />
           )}
         </button>
 
@@ -229,7 +231,7 @@ const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(({ onSend, disabled }
           disabled={!input.trim() || disabled || isRecording}
           className={`p-2.5 rounded-full transition-colors flex-shrink-0 ${
             input.trim() && !disabled && !isRecording
-              ? 'bg-pink-500 hover:bg-pink-600' 
+              ? theme.sendBtn
               : 'bg-gray-300 cursor-not-allowed'
           }`}
         >

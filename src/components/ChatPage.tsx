@@ -11,6 +11,7 @@ import {
 import MessageBubble from '@/components/MessageBubble';
 import ChatInput, { ChatInputRef } from '@/components/ChatInput';
 import UserAuthStatus from '@/components/UserAuthStatus';
+import { getCharacterTheme } from '@/lib/characterThemes';
 import { ArrowLeft, Share2, X, Copy, Check, MessageCircle } from 'lucide-react';
 
 interface ChatPageProps {
@@ -19,6 +20,7 @@ interface ChatPageProps {
 }
 
 export default function ChatPage({ character, onBack }: ChatPageProps) {
+  const theme = getCharacterTheme(character.id);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<ChatInputRef>(null);
   const isPageActiveRef = useRef(true);
@@ -363,19 +365,19 @@ export default function ChatPage({ character, onBack }: ChatPageProps) {
     : undefined;
 
   return (
-    <div className="flex h-[100dvh] min-h-[100dvh] w-full max-w-full flex-col overflow-hidden bg-gray-50" style={chatPageStyle}>
+    <div className={`flex h-[100dvh] min-h-[100dvh] w-full max-w-full flex-col overflow-hidden ${theme.pageBg}`} style={chatPageStyle}>
       {/* 顶部导航 */}
-      <div className="flex w-full max-w-full shrink-0 items-center justify-between overflow-hidden px-4 py-3 bg-white border-b border-gray-100 shadow-sm">
+      <div className={`flex w-full max-w-full shrink-0 items-center justify-between overflow-hidden px-4 py-3 ${theme.headerBg} border-b ${theme.headerBorder} shadow-sm`}>
         <div className="flex items-center gap-3">
           <button
             onClick={onBack}
-            className="p-2 hover:bg-gray-100 rounded-full transition-colors"
+            className={`p-2 ${theme.headerIconHover} rounded-full transition-colors`}
           >
-            <ArrowLeft className="w-5 h-5 text-gray-600" />
+            <ArrowLeft className={`w-5 h-5 ${theme.headerIcon}`} />
           </button>
-          
+
           <div className="flex items-center gap-3">
-            <div className="relative w-10 h-10 rounded-full overflow-hidden flex-shrink-0 border border-gray-200">
+            <div className={`relative w-10 h-10 rounded-full overflow-hidden flex-shrink-0 border ${theme.avatarRing}`}>
               <Image
                 src={`/images/characters/${character.id}.jpg`}
                 alt={character.name}
@@ -385,23 +387,23 @@ export default function ChatPage({ character, onBack }: ChatPageProps) {
               />
             </div>
             <div>
-              <h2 className="font-semibold text-gray-800">{character.name}</h2>
-              <p className="text-xs text-green-500 flex items-center gap-1">
-                <span className="w-1.5 h-1.5 bg-green-500 rounded-full" />
+              <h2 className={`font-semibold ${theme.headerName}`}>{character.name}</h2>
+              <p className={`text-xs ${theme.headerStatus} flex items-center gap-1`}>
+                <span className="w-1.5 h-1.5 bg-green-400 rounded-full" />
                 在线
               </p>
             </div>
           </div>
         </div>
-        
+
         {/* 右侧：分享按钮 */}
         <div className="flex shrink-0 items-center gap-2">
           <UserAuthStatus />
           <button
             onClick={() => setShowShareModal(true)}
-            className="p-2 hover:bg-gray-100 rounded-full transition-colors"
+            className={`p-2 ${theme.headerIconHover} rounded-full transition-colors`}
           >
-            <Share2 className="w-5 h-5 text-gray-600" />
+            <Share2 className={`w-5 h-5 ${theme.headerIcon}`} />
           </button>
         </div>
       </div>
@@ -411,7 +413,7 @@ export default function ChatPage({ character, onBack }: ChatPageProps) {
         {/* 欢迎消息 */}
         {messages.length === 0 && (
           <div className="flex flex-col items-center justify-center h-full text-center">
-            <div className="relative w-20 h-20 rounded-full overflow-hidden mb-4 border-2 border-pink-200">
+            <div className={`relative w-20 h-20 rounded-full overflow-hidden mb-4 border-2 ${theme.avatarRing}`}>
               <Image
                 src={`/images/characters/${character.id}.jpg`}
                 alt={character.name}
@@ -421,7 +423,7 @@ export default function ChatPage({ character, onBack }: ChatPageProps) {
               />
             </div>
             <h3 className="text-lg font-semibold text-gray-800 mb-1">{character.name}</h3>
-            <p className="text-sm text-gray-500 mb-4">{character.role}</p>
+            <p className={`text-sm ${theme.welcomeAccent} mb-4`}>{character.role}</p>
             <p className="text-sm text-gray-400">
               {character.id === 'su-chen' 
                 ? '嗨～终于等到你了！' 
@@ -451,8 +453,8 @@ export default function ChatPage({ character, onBack }: ChatPageProps) {
       </div>
       
       {/* 输入区域 - 增加底部安全区避免被平台水印遮挡 */}
-      <div className="w-full max-w-full shrink-0 overflow-hidden bg-white pb-[env(safe-area-inset-bottom)] [&>div]:w-full [&>div]:max-w-full [&>div]:overflow-hidden">
-        <ChatInput ref={inputRef} onSend={handleSendMessage} disabled={isLoading} />
+      <div className={`w-full max-w-full shrink-0 overflow-hidden ${theme.inputBarBg} pb-[env(safe-area-inset-bottom)] [&>div]:w-full [&>div]:max-w-full [&>div]:overflow-hidden`}>
+        <ChatInput ref={inputRef} onSend={handleSendMessage} disabled={isLoading} theme={theme} />
       </div>
       
       {/* 图片查看器 */}
